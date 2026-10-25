@@ -1,0 +1,23 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Search, ShieldCheck, UserRound } from 'lucide-react';
+
+import api from '../../services/api';
+
+type AdminUser = { _id: string; firstName: string; lastName: string; email: string; role: 'customer' | 'admin'; isActive: boolean; emailVerified: boolean; createdAt: string };
+
+export default function AdminUsersPage() {
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const usersQuery = useQuery({ queryKey: ['admin-users', page, search], queryFn: async () => (await api.get('/admin/users', { params: { page, limit: 20, search } })).data.data as { users: AdminUser[]; pagination: { page: number; totalPages: number; totalItems: number } } });
+  const users = usersQuery.data?.users ?? [];
+  const pagination = usersQuery.data?.pagination;
+
+  return <div className="space-y-6">
+    <div><p className="text-sm font-medium text-indigo-600">Accounts and access</p><h2 className="mt-1 text-3xl font-bold text-slate-950">Users</h2><p className="mt-2 text-sm text-slate-500">Authorized profile details only. Passwords are never returned by the API.</p></div>
+    <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200"><div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="font-bold text-slate-900">Registered accounts</h3><p className="text-sm text-slate-500">{pagination?.totalItems ?? 0} account(s) total</p></div><label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2"><Search className="h-4 w-4 text-slate-400" /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Name or email…" className="text-sm outline-none" /></label></div>
+      {usersQuery.isLoading ? <p className="p-8 text-slate-500">Loading users…</p> : usersQuery.isError ? <p role="alert" className="p-8 text-red-700">Could not load users. Check your admin permissions.</p> : users.length === 0 ? <div className="p-12 text-center"><UserRound className="mx-auto h-9 w-9 text-slate-300" /><p className="mt-3 font-semibold text-slate-700">No accounts to display</p></div> : <div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">User</th><th className="px-5 py-3">Role</th><th className="px-5 py-3">Email verification</th><th className="px-5 py-3">Account</th><th className="px-5 py-3">Joined</th></tr></thead><tbody className="divide-y divide-slate-100">{users.map((user) => <tr key={user._id} className="hover:bg-slate-50/70"><td className="px-5 py-4"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 text-indigo-700"><UserRound className="h-5 w-5" /></span><div><p className="font-semibold text-slate-900">{user.firstName} {user.lastName}</p><p className="text-xs text-slate-500">{user.email}</p></div></div></td><td className="px-5 py-4"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${user.role === 'admin' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>{user.role === 'admin' && <ShieldCheck className="h-3.5 w-3.5" />}{user.role === 'admin' ? 'Administrator' : 'Customer'}</span></td><td className="px-5 py-4 text-slate-600">{user.emailVerified ? 'Verified' : 'Not verified'}</td><td className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${user.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{user.isActive ? 'Active' : 'Disabled'}</span></td><td className="px-5 py-4 text-slate-600">{user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US') : '—'}</td></tr>)}</tbody></table></div>}
+      {!usersQuery.isLoading && !usersQuery.isError && users.length > 0 && pagination && <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-sm"><span className="text-slate-500">Page {pagination.page} of {pagination.totalPages}</span><div className="flex gap-2"><button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium disabled:opacity-40">Previous</button><button type="button" disabled={page >= pagination.totalPages} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium disabled:opacity-40">Next</button></div></div>}
+    </section>
+  </div>;
+}
